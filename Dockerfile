@@ -22,10 +22,7 @@ RUN apt-get update && \
     wget -P /app/models/ https://gpt4all.io/models/ggml-stable-vicuna-13B.q4_2.bin
 
 # Make port 80 available to the world outside this container
-EXPOSE 80
-
-# Define environment variable
-ENV NAME World
+EXPOSE 80 
 
 # Run app.py when the container launches
 CMD ["streamlit", "run", "app.py", "--server.port", "80", "--server.headless", "true"]
