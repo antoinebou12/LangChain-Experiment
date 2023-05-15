@@ -15,34 +15,23 @@ from langchain.utilities import WikipediaAPIWrapper, CodeRepositoryAnalyzer, PDF
 os.environ['OPENAI_API_KEY'] = apikey
 
 class ResearchEngine:
-    """A class to handle the YouTube GPT Creator operations"""
-
-    from langchain.prompts import PromptTemplate
-    from langchain.chains import LLMChain
-    from langchain.memory import ConversationBufferMemory
-    from langchain.utilities import WikipediaAPIWrapper
-
-def __init__(self, llm_choice: str):
+    def __init__(self, llm_choice: str):
         self.llm_choice = llm_choice
-        self.memory = self.ConversationBufferMemory(input_key='research_topic', memory_key='chat_history')
+        self.memory = ConversationBufferMemory(input_key='research_topic', memory_key='chat_history')
 
-        if self.llm_choice == "OpenAI":
-            self.llm = OpenAI(temperature=0.9)
-        else:
-            self.llm = LlamaCPP(temperature=0.9)
+        self.llm = OpenAI(temperature=0.9) if self.llm_choice == "OpenAI" else LlamaCPP(temperature=0.9)
 
-        self.prompt = self.PromptTemplate(
+        self.prompt = PromptTemplate(
             input_variables=['research_topic', 'wikipedia_research', 'code_analysis', 'pdf_analysis'],
             template='Analyze and provide insights on the topic "{research_topic}" based on the following resources: Wikipedia research: {wikipedia_research}, Code analysis: {code_analysis}, PDF analysis: {pdf_analysis}'
         )
 
-        self.chain = self.LLMChain(llm=self.llm, prompt=self.prompt, verbose=True, output_key='insights', memory=self.memory)
-        self.wiki = self.WikipediaAPIWrapper()
-        self.code_analyzer = CodeRepositoryAnalyzer()  # hypothetical analyzer
-        self.pdf_analyzer = PDFAnalyzer()  # hypothetical analyzer
+        self.chain = LLMChain(llm=self.llm, prompt=self.prompt, verbose=True, output_key='insights', memory=self.memory)
+        self.wiki = WikipediaAPIWrapper()
+        self.code_analyzer = CodeRepositoryAnalyzer()
+        self.pdf_analyzer = PDFAnalyzer()
 
     def run(self, research_topic: str, code_repo_path: str, pdf_file_path: str):
-        """Method to run the research engine"""
         wiki_research = self.wiki.run(research_topic)
         code_analysis = self.code_analyzer.run(code_repo_path)
         pdf_analysis = self.pdf_analyzer.run(pdf_file_path)
@@ -50,92 +39,36 @@ def __init__(self, llm_choice: str):
         insights = self.chain.run(research_topic=research_topic, wikipedia_research=wiki_research, code_analysis=code_analysis, pdf_analysis=pdf_analysis)
         return insights
 
-
-# App framework
-st.title('ResearchEngine')
 @st.cache(allow_output_mutation=True)
 def get_insights(research_topic, code_repo_path, pdf_file_path):
-    creator = GPTCreator(llm_choice)
+    creator = ResearchEngine(llm_choice)
     return creator.run(research_topic, code_repo_path, pdf_file_path)
-pdf_file = st.file_uploader("Upload a PDF file", type=["pdf"])
 
-# Choose LLM
-llm_choice = st.selectbox("Choose LLM:", ("OpenAI", "LlamaCPP"))
+def main():
+    st.title('ResearchEngine')
+    llm_choice = st.selectbox("Choose LLM:", ("OpenAI", "LlamaCPP"))
+    zip_file = st.file_uploader("Upload a ZIP file", type=["zip"])
 
-# Show stuff to the screen if there's a PDF file
-if pdf_file:
-    creator = GPTCreator(llm_choice)
+    if zip_file:
+        process_zip_file(zip_file, llm_choice)
 
-    # Load the PDF file using UnstructuredFileLoader
-    loader = UnstructuredFileLoader(pdf_file, mode="elements")
-    docs = loader.load()
+    pdf_file = st.file_uploader("Upload a PDF file", type=["pdf"])
+    if pdf_file:
+        process_pdf_file(pdf_file, llm_choice)
 
-    # Extract the content and convert it to a string
-    content = ' '.join([doc.page_content for doc in docs])
-
-    title, script, wiki_research = creator.run(content)
-
-    st.write(title)
-    st.write(script)
-
-    with st.expander('Title History'):
-        st.info(creator.title_memory.buffer)
-
-    with st.expander('Script History'):
-        st.info(creator.script_memory.buffer)
-
-    with st.expander('Wikipedia Research'):
-        st.info(wiki_research)
-
-
-# Logging configuration
-logging.basicConfig(filename='app.log', level=logging.INFO)
-
-# App framework
-st.title('ResearchEngine')
-zip_file = st.file_uploader("Upload a ZIP file", type=["zip"])
-
-# Choose LLM
-llm_choice = st.selectbox("Choose LLM:", ("OpenAI", "LlamaCPP"))
-
-# Process the ZIP file
-if zip_file:
+def process_zip_file(zip_file, llm_choice):
     try:
         with zipfile.ZipFile(zip_file, 'r') as zip_ref:
-            # Extract to a temporary directory
             temp_dir = Path('temp')
             temp_dir.mkdir(parents=True, exist_ok=True)
             zip_ref.extractall(temp_dir)
 
-            # Process each file in the directory
             for file_path in temp_dir.glob('**/*'):
                 if file_path.is_file():
-                    # Load the PDF file using UnstructuredFileLoader
                     with file_path.open('rb') as file:
-                        loader = UnstructuredFileLoader(file, mode="elements")
-                        docs = loader.load()
+                        process_file(file, llm_choice, file_path.name)
 
-                    # Extract the content and convert it to a string
-                    content = ' '.join([doc.page_content for doc in docs])
-
-                    creator = GPTCreator(llm_choice)
-                    title, script, wiki_research = creator.run(content)
-
-                    st.write(f'For file {file_path.name}:')
-                    st.write(title)
-                    st.write(script)
-
-                    with st.expander(f'Title History ({file_path.name})'):
-                        st.info(creator.title_memory.buffer)
-
-                    with st.expander(f'Script History ({file_path.name})'):
-                        st.info(creator.script_memory.buffer)
-
-                    with st.expander(f'Wikipedia Research ({file_path.name})'):
-                        st.info(wiki_research)
-
-        # Clean up the temporary directory
-        shutil.rmtree(temp_dir)
+            shutil.rmtree(temp_dir)
 
     except zipfile.BadZipFile:
         st.error('Error: Bad zip file')
@@ -143,3 +76,33 @@ if zip_file:
     except Exception as e:
         st.error(f'An error occurred: {str(e)}')
         logging.error(f'An error occurred: {str(e)}')
+
+def process_pdf_file(pdf_file, llm_choice):
+    loader = UnstructuredFileLoader(pdf_file, mode="elements")
+    docs = loader.load()
+
+    content = ' '.join([doc.page_content for doc in docs])
+    process_file(content, llm_choice, 'PDF file')
+
+def process_file(file_content, llm_choice, file_name):
+    creator = ResearchEngine(llm_choice)
+    title, script, wiki_research = creator.run(file_content)
+
+    st.write(f'For file {file_name}:')
+    st.write(title)
+    st.write(script)
+
+    with st.expander(f'Title History ({file_name})'):
+        st.info(creator.memory.buffer['title'])
+
+    with st.expander(f'Script History ({file_name})'):
+        st.info(creator.memory.buffer['script'])
+
+    with st.expander(f'Wikipedia Research ({file_name})'):
+        st.info(wiki_research)
+
+if __name__ == "__main__":
+    # Logging configuration
+    logging.basicConfig(filename='app.log', level=logging.INFO)
+
+    main()
