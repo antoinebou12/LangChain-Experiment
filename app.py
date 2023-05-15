@@ -38,24 +38,7 @@ class ResearchEngine:
 
         insights = self.chain.run(research_topic=research_topic, wikipedia_research=wiki_research, code_analysis=code_analysis, pdf_analysis=pdf_analysis)
         return insights
-
-@st.cache(allow_output_mutation=True)
-def get_insights(research_topic, code_repo_path, pdf_file_path):
-    creator = ResearchEngine(llm_choice)
-    return creator.run(research_topic, code_repo_path, pdf_file_path)
-
-def main():
-    st.title('ResearchEngine')
-    llm_choice = st.selectbox("Choose LLM:", ("OpenAI", "LlamaCPP"))
-    zip_file = st.file_uploader("Upload a ZIP file", type=["zip"])
-
-    if zip_file:
-        process_zip_file(zip_file, llm_choice)
-
-    pdf_file = st.file_uploader("Upload a PDF file", type=["pdf"])
-    if pdf_file:
-        process_pdf_file(pdf_file, llm_choice)
-
+    
 def process_zip_file(zip_file, llm_choice):
     try:
         with zipfile.ZipFile(zip_file, 'r') as zip_ref:
@@ -75,7 +58,7 @@ def process_zip_file(zip_file, llm_choice):
         logging.error('Bad zip file uploaded')
     except Exception as e:
         st.error(f'An error occurred: {str(e)}')
-        logging.error(f'An error occurred: {str(e)}')
+        logging.error(f'An error occurred: {str(e)}')    
 
 def process_pdf_file(pdf_file, llm_choice):
     loader = UnstructuredFileLoader(pdf_file, mode="elements")
@@ -100,6 +83,41 @@ def process_file(file_content, llm_choice, file_name):
 
     with st.expander(f'Wikipedia Research ({file_name})'):
         st.info(wiki_research)
+
+@st.cache(allow_output_mutation=True)
+def get_insights(research_topic, code_repo_path, pdf_file_path):
+    creator = ResearchEngine(llm_choice)
+    return creator.run(research_topic, code_repo_path, pdf_file_path)
+
+def main():
+    st.title('ResearchEngine')
+    llm_choice = st.selectbox("Choose LLM:", ("OpenAI", "LlamaCPP"))
+
+    st.sidebar.header('Search')
+    search = st.sidebar.text_input('Enter a research topic', '')
+    autocomplete_options = ['Option 1', 'Option 2', 'Option 3']  # Populate this list dynamically
+    autocomplete = st.sidebar.selectbox('Did you mean:', autocomplete_options)
+
+    zip_file = st.file_uploader("Upload a ZIP file", type=["zip"])
+    if zip_file:
+        process_zip_file(zip_file, llm_choice)
+
+    pdf_file = st.file_uploader("Upload a PDF file", type=["pdf"])
+    if pdf_file:
+        process_pdf_file(pdf_file, llm_choice)
+
+    if search:
+        st.header('Results for: ' + search)
+        research_data = get_insights(search, zip_file, pdf_file)  # Assume get_insights returns a pandas DataFrame
+
+        if research_data is not None:
+            st.dataframe(research_data)
+
+    progress = st.progress(0)
+    for i in range(100):
+        # Update the progress bar with each iteration.
+        progress.progress(i + 1)
+
 
 if __name__ == "__main__":
     # Logging configuration
