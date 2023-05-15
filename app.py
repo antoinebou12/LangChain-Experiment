@@ -30,6 +30,11 @@ class ResearchEngine:
         self.wiki = WikipediaAPIWrapper()
         self.code_analyzer = CodeRepositoryAnalyzer()
         self.pdf_analyzer = PDFAnalyzer()
+        
+    def export_conversation(self, filepath: str):
+        with open(filepath, 'w') as f:
+            for message in self.memory.buffer:
+                f.write(f"{message}\n")
 
     def run(self, research_topic: str, code_repo_path: str, pdf_file_path: str):
         wiki_research = self.wiki.run(research_topic)
@@ -97,6 +102,16 @@ def main():
     search = st.sidebar.text_input('Enter a research topic', '')
     autocomplete_options = ['Option 1', 'Option 2', 'Option 3']  # Populate this list dynamically
     autocomplete = st.sidebar.selectbox('Did you mean:', autocomplete_options)
+    
+    export_button = st.button("Export Conversation History")
+    if export_button:
+        filepath = st.text_input("Enter the path where you want to save the conversation history.")
+        if filepath:
+            try:
+                creator.export_conversation(filepath)
+                st.success("Conversation history exported successfully.")
+            except Exception as e:
+                st.error(f"An error occurred while exporting the conversation history: {str(e)}")
 
     zip_file = st.file_uploader("Upload a ZIP file", type=["zip"])
     if zip_file:
