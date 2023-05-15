@@ -52,7 +52,11 @@ def __init__(self, llm_choice: str):
 
 
 # App framework
-st.title('🦜🔗 YouTube GPT Creator')
+st.title('ResearchEngine')
+@st.cache(allow_output_mutation=True)
+def get_insights(research_topic, code_repo_path, pdf_file_path):
+    creator = GPTCreator(llm_choice)
+    return creator.run(research_topic, code_repo_path, pdf_file_path)
 pdf_file = st.file_uploader("Upload a PDF file", type=["pdf"])
 
 # Choose LLM
