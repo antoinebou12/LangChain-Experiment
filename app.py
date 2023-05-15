@@ -92,7 +92,7 @@ if pdf_file:
 logging.basicConfig(filename='app.log', level=logging.INFO)
 
 # App framework
-st.title('🦜🔗 YouTube GPT Creator')
+st.title('ResearchEngine')
 zip_file = st.file_uploader("Upload a ZIP file", type=["zip"])
 
 # Choose LLM
